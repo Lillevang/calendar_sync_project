@@ -25,17 +25,22 @@ def sync_ics_files(
     # Process events based on the direction and provided prefixes
     for component in gcal.walk():
         if component.name == "VEVENT":
-            summary = component.get("SUMMARY")
+            summary = str(component.get("SUMMARY"))
+            print(f"Processing event summary: {summary}")  # Debugging output
 
             # Filter out events with the given filter_prefix
             if filter_prefix and summary and summary.startswith(filter_prefix):
+                print(f"Skipping event: {summary}")  # Debugging output
                 continue  # Skip events with the filter prefix
 
             # Add the add_prefix to the event's summary if required
             if add_prefix and summary:
                 component["SUMMARY"] = f"{add_prefix}{summary}"
+                print(
+                    f"Updated event summary with prefix: {component['SUMMARY']}"
+                )  # Debugging output
 
-            # Add the event to the new calendar
+            # Add the event to the new calendar ONLY if it passed filtering
             new_cal.add_component(component)
 
     # Write the filtered/modified events to the output ICS file

@@ -5,7 +5,7 @@ A CLI tool for syncing and managing calendar events between two calendars using 
 ## Features
 
 - Sync events from one calendar to another using ICS files.
-- Filter events based on a prefix (e.g., remove events that start with `ATP:`).
+- Filter events based on a prefix (e.g., remove events that start with `XYZ:`).
 - Add a prefix to events being synced to distinguish events from different calendars.
 - Detect conflicting events between two calendars over a specified number of days.
 

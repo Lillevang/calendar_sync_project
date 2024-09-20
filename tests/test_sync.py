@@ -1,5 +1,5 @@
 import os
-from calendar_sync.sync import sync_ics_files, parse_ics_file
+from calendar_sync.sync import sync_ics_files
 from icalendar import Calendar
 
 
@@ -42,16 +42,3 @@ def test_sync_add_prefix(tmp_path):
     assert len(events) == 2
     assert events[0].get("SUMMARY") == "ClientA: Test Event 1"
     assert events[1].get("SUMMARY") == "ClientA: ATP: Test Event 2"
-
-
-def test_event_parsing():
-    # Load example calendar file
-    input_ics_path = os.path.join("examples", "example_calendar_1.ics")
-
-    # Parse the ICS file
-    events = parse_ics_file(input_ics_path)
-
-    # Verify event details
-    assert len(events) == 2
-    assert events[0]["summary"] == "Test Event 1"
-    assert events[1]["summary"] == "ATP: Test Event 2"

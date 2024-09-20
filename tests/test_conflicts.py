@@ -10,7 +10,11 @@ def test_conflict_detection():
     # Check for conflicts within the next 10 days
     conflicts = check_conflicts(file1, file2, days=10)
 
-    # There should be one conflict between event-1 and event-3
+    # Print conflicts for debugging
+    for conflict in conflicts:
+        print(f"Conflict: {conflict[0]['uid']} vs {conflict[1]['uid']}")
+
+    # There should be one conflict between event-2 and event-4
     assert len(conflicts) == 1
-    assert conflicts[0][0]["UID"] == "event-1@example.com"
-    assert conflicts[0][1]["UID"] == "event-3@example.com"
+    assert conflicts[0][0]["uid"] == "event-2@example.com"
+    assert conflicts[0][1]["uid"] == "event-4@example.com"

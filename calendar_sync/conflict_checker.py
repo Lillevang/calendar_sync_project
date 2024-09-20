@@ -1,23 +1,27 @@
-# calendar_sync/conflict_checker.py
+from calendar_sync.event_loader import load_events
 
 
 def check_conflicts(file1, file2, days):
-    """Stub for checking conflicts between two ICS files."""
-    print(f"Checking conflicts between {file1} and {file2} for the next {days} days")
-    # Return a mock conflict for testing
-    return [
-        (
-            {
-                "UID": "event-1@example.com",
-                "SUMMARY": "Test Event 1",
-                "start": "2024-09-20T10:00:00",
-                "end": "2024-09-20T11:00:00",
-            },
-            {
-                "UID": "event-3@example.com",
-                "SUMMARY": "Test Event 3",
-                "start": "2024-09-20T10:30:00",
-                "end": "2024-09-20T11:30:00",
-            },
-        )
-    ]
+    """
+    Check for conflicts between two ICS files within the next 'days' days.
+
+    Args:
+        file1 (str): Path to the first ICS file.
+        file2 (str): Path to the second ICS file.
+        days (int): Number of days ahead to check for conflicts.
+
+    Returns:
+        list: A list of conflicting events.
+    """
+    events1 = load_events(file1, days)
+    events2 = load_events(file2, days)
+
+    conflicts = []
+
+    # Check for overlapping events
+    for event1 in events1:
+        for event2 in events2:
+            if event1["start"] < event2["end"] and event1["end"] > event2["start"]:
+                conflicts.append((event1, event2))
+
+    return conflicts

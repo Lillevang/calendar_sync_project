@@ -113,4 +113,3 @@ The `.flake8` configuration is located in the root of the project. It includes r
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](/LICENSE) file for more details.
-

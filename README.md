@@ -51,7 +51,7 @@ Please make sure to update tests as appropriate.
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/calendar_sync_project.git
+git clone https://github.com/Lillevang/calendar_sync_project.git
 cd calendar_sync_project
 ```
 

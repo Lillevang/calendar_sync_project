@@ -1,91 +1,91 @@
 from icalendar import Calendar
+from icalendar.prop import vText
+import click
+from termcolor import colored
+
+
+def read_calendar(file_path: str) -> Calendar:
+    """Reads the ICS file and returns a Calendar object."""
+    with open(file_path, "rb") as f:
+        return Calendar.from_ical(f.read())
+
+
+def get_events_from_calendar(calendar: Calendar) -> dict:
+    """Extracts events from the calendar and returns a dictionary of events by UID."""
+    events = {}
+    for event in calendar.walk("VEVENT"):
+        uid = str(event.get("UID"))
+        events[uid] = event
+    return events
+
+
+def handle_event_conflicts(event, existing_event, check_conflicts) -> bool:
+    """
+    Handles event conflicts (rescheduled or canceled).
+    Returns True if the event should be skipped due to a conflict
+    """
+    if event.get("DTSTART") != existing_event.get("DTSTART") or event.get(
+        "DTEND"
+    ) != existing_event.get("DTEND"):
+        # If syncing back and the event is rescheduled in `calendar_a`, log a warning
+        if check_conflicts:
+            click.echo(
+                colored(
+                    f"Conflict: Event '{event['SUMMARY']}' \
+                        was rescheduled in the original calendar.",
+                    "red",
+                )
+            )
+            return True
+    if event.get("STATUS") == "CANCELLED":
+        return True
+    return False
 
 
 def sync_ics_files(
-    direction, ics_file1, ics_file2=None, filter_prefix=None, add_prefix=None
+    from_file, to_file, add_prefix=None, filter_prefix=None, check_conflicts=None
 ):
-    """
-    Syncs ICS files by filtering out or adding prefixes to event titles.
-
-    direction: The sync direction (merge_a_to_b or merge_b_to_a).
-    ics_file1: Path to the first ICS file (Calendar A).
-    ics_file2: Path to the second ICS file (Calendar B) if syncing two files.
-    filter_prefix: If provided, events with this prefix in the title will be skipped.
-    add_prefix: If provided, this prefix will be added to the title of each event.
-    """
-    # Read the input ICS files
-    with open(ics_file1, "rb") as f1:
-        cal1 = Calendar.from_ical(f1.read())
-
-    cal2 = None
-    if ics_file2:
-        with open(ics_file2, "rb") as f2:
-            cal2 = Calendar.from_ical(f2.read())
-
-    # Create a new calendar for the merged/modified events
+    """Syncs events from the source calendar to the destination calendar."""
+    # Create a new calendar for the merged events
     new_cal = Calendar()
     new_cal.add("prodid", "-//Calendar Sync App//EN")
     new_cal.add("version", "2.0")
 
-    # Track added UIDs to avoid duplicates
-    added_uids = set()
+    # Read destination calendar and get events
+    to_calendar = read_calendar(to_file)
+    destination_events = get_events_from_calendar(to_calendar)
 
-    # Helper function to add an event only if its UID hasn't been added yet
-    def add_event(event):
-        uid = str(event.get("UID"))
-        if uid not in added_uids:
-            added_uids.add(uid)
+    # Add destination events to the new calendar
+    for event in destination_events.values():
+        new_cal.add_component(event)
+
+    # Read source calendar and process events
+    from_calendar = read_calendar(from_file)
+    source_events = get_events_from_calendar(from_calendar)
+
+    for uid, event in source_events.items():
+        # Skip events with filter prefix
+        if filter_prefix and str(event.get("SUMMARY")).startswith(filter_prefix):
+            continue
+
+        # Event already exists in the destination calendar
+        if uid in destination_events:
+            existing_event = destination_events[uid]
+            if handle_event_conflicts(event, existing_event, check_conflicts):
+                continue  # Skip due to conflict
+
+            # Remove old event and add the updated one
+            new_cal.subcomponents.remove(existing_event)
+            new_cal.add_component(event)
+        else:
+            # Only apply the prefix to new events from `from_file`
+            summary = event.get("SUMMARY")
+            if isinstance(summary, vText):
+                summary = str(summary)  # Convert vText to string
+
+            if add_prefix and not summary.startswith(add_prefix):
+                event["SUMMARY"] = f"{add_prefix}{summary}"
+                print(f"Updated event with prefix: {event.get('SUMMARY')}")
             new_cal.add_component(event)
 
-    # Process the direction, merge events between calendars or sync within a single file
-    if direction == "merge_a_to_b":
-        for event in cal1.walk("VEVENT"):
-            if add_prefix and "SUMMARY" in event:
-                event["SUMMARY"] = f"{add_prefix}{event['SUMMARY']}"
-            add_event(event)  # Add event from Calendar A
-
-        for event in cal2.walk("VEVENT"):
-            if (
-                filter_prefix
-                and "SUMMARY" in event
-                and str(event["SUMMARY"]).startswith(filter_prefix)
-            ):
-                continue  # Skip the event if it matches the filter prefix
-            add_event(event)  # Add event from Calendar B
-
-    elif direction == "merge_b_to_a":
-        for event in cal2.walk("VEVENT"):
-            if add_prefix and "SUMMARY" in event:
-                event["SUMMARY"] = f"{add_prefix}{event['SUMMARY']}"
-            add_event(event)  # Add event from Calendar B
-
-        for event in cal1.walk("VEVENT"):
-            if (
-                filter_prefix
-                and "SUMMARY" in event
-                and str(event["SUMMARY"]).startswith(filter_prefix)
-            ):
-                continue  # Skip the event if it matches the filter prefix
-            add_event(event)  # Add event from Calendar A
-
-    else:
-        # Single file sync (apply filter or prefix to one file only)
-        for event in cal1.walk("VEVENT"):
-            if (
-                filter_prefix
-                and "SUMMARY" in event
-                and str(event["SUMMARY"]).startswith(filter_prefix)
-            ):
-                continue  # Skip events with the filter prefix
-
-            if add_prefix and "SUMMARY" in event:
-                event["SUMMARY"] = f"{add_prefix}{event['SUMMARY']}"
-            add_event(event)  # Add event from Calendar A
-
     return new_cal
-
-
-def write_ics_file(calendar, output_file):
-    """Writes the Calendar object to an ICS file."""
-    with open(output_file, "wb") as f:
-        f.write(calendar.to_ical())

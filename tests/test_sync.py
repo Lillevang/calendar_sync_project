@@ -1,47 +1,81 @@
-import os
-from calendar_sync.sync import sync_ics_files
-from icalendar import Calendar
+from unittest.mock import patch, MagicMock
+from calendar_sync.sync import (
+    sync_ics_files,
+    get_events_from_calendar,
+    handle_event_conflicts,
+)
+from icalendar import Calendar, Event
 
 
-def test_sync_filtering(tmp_path):
-    # Load example calendar file
-    input_ics_path = os.path.join("examples", "example_calendar_1.ics")
-    output_ics_path = tmp_path / "output_calendar.ics"
+def test_get_events_from_calendar():
+    """Test that events are correctly extracted from a calendar."""
+    cal = Calendar()
+    event = Event()
+    event.add("UID", "12345")
+    cal.add_component(event)
 
-    # Run the sync function with filtering (remove "xyz:" prefixed events)
-    sync_ics_files(
-        "calendar_a_to_b", input_ics_path, output_ics_path, filter_prefix="xyz:"
-    )
-
-    # Load the generated ICS file and verify the filtering
-    with open(output_ics_path, "rb") as f:
-        cal = Calendar.from_ical(f.read())
-
-    # Print all events for debugging
-    events = [comp for comp in cal.walk() if comp.name == "VEVENT"]
-    for event in events:
-        print(f"Event after filtering: {event['SUMMARY']}")
-
-    # There should be 4 events left after filtering (not 3)
-    assert len(events) == 4  # Adjusted to expect 4 events
+    events = get_events_from_calendar(cal)
+    assert len(events) == 1
+    assert "12345" in events
 
 
-def test_sync_add_prefix(tmp_path):
-    # Load example calendar file
-    input_ics_path = os.path.join("examples", "example_calendar_1.ics")
-    output_ics_path = tmp_path / "output_calendar.ics"
+def test_sync_ics_files():
+    """Test the main sync logic."""
+    mock_from_cal = Calendar()
+    mock_to_cal = Calendar()
 
-    # Run the sync function with prefix addition (add "ClientA:" to events)
-    sync_ics_files(
-        "calendar_b_to_a", input_ics_path, output_ics_path, add_prefix="ClientA: "
-    )
+    event_a = Event()
+    event_a.add("UID", "event-1")
+    event_a.add("SUMMARY", "Event A")
+    mock_from_cal.add_component(event_a)
 
-    # Load the generated ICS file and verify the prefix was added
-    with open(output_ics_path, "rb") as f:
-        cal = Calendar.from_ical(f.read())
+    event_b = Event()
+    event_b.add("UID", "event-2")
+    event_b.add("SUMMARY", "Event B")
+    mock_to_cal.add_component(event_b)
 
-    # Verify that the prefix was added to the event summaries
-    events = [comp for comp in cal.walk() if comp.name == "VEVENT"]
-    assert len(events) == 5  # Adjusting the expectation to match actual event count
-    for event in events:
-        assert event["SUMMARY"].startswith("ClientA: ")
+    # Mock read_calendar to return the mocked calendars
+    with patch("calendar_sync.sync.read_calendar") as mock_read_calendar:
+        mock_read_calendar.side_effect = [mock_from_cal, mock_to_cal]
+
+        # Perform the sync
+        new_cal = sync_ics_files("mock_from.ics", "mock_to.ics", add_prefix="[Synced]")
+
+        # Debugging: Convert vText to string for proper comparison in the test
+        event_summaries = [
+            str(event.get("SUMMARY")) for event in new_cal.walk("VEVENT")
+        ]
+        print(f"Event summaries after sync: {event_summaries}")
+
+        # Verify the merged calendar contains both events,
+        # but only applies the prefix to `from_file` events
+        assert (
+            "[Synced]Event B" in event_summaries
+        ), "Expected '[Synced]Event B' not found"
+        assert (
+            "Event A" in event_summaries
+        ), "Expected 'Event A' not found (no prefix should be applied)"
+
+
+def test_handle_event_conflicts_no_conflict():
+    """Test conflict handling when there are no conflicts."""
+    event = MagicMock()
+    event.get.return_value = "2024-09-25 10:00"
+
+    existing_event = MagicMock()
+    existing_event.get.return_value = "2024-09-25 10:00"
+
+    result = handle_event_conflicts(event, existing_event, check_conflicts=False)
+    assert result is False  # No conflict, should not skip
+
+
+def test_handle_event_conflicts_rescheduled():
+    """Test conflict handling for a rescheduled event."""
+    event = MagicMock()
+    event.get.side_effect = ["2024-09-25 10:00", "2024-09-25 11:00"]
+
+    existing_event = MagicMock()
+    existing_event.get.side_effect = ["2024-09-26 10:00", "2024-09-26 11:00"]
+
+    result = handle_event_conflicts(event, existing_event, check_conflicts=True)
+    assert result is True  # Conflict, should skip

@@ -5,7 +5,7 @@ A CLI tool for syncing and managing calendar events between two calendars using 
 ## Features
 
 - Sync events from one calendar to another using ICS files.
-- Filter events based on a prefix (e.g., remove events that start with `XYZ:`).
+- Filter events based on a prefix (e.g., remove events that start with XYZ:).
 - Add a prefix to events being synced to distinguish events from different calendars.
 - Detect conflicting events between two calendars over a specified number of days.
 
@@ -14,20 +14,20 @@ A CLI tool for syncing and managing calendar events between two calendars using 
 
 ### Syncing Calendars
 
-You can sync calendars in both directions using the sync command.
+You can sync calendars by specifying a source calendar (from_file) and a destination calendar (to_file).
 
 #### Example Usage:
 
-- Sync from "Calendar A" to "Calendar B" and remove the events prefixed with `XYZ:`:
+- Sync from "Calendar A" to "Calendar B", filtering out events prefixed with `XYZ`:
 
 ```bash
-calendar-sync sync --direction calendar_a_to_b --ics_file path/to/calendar_a.ics --output_file path/to/output_calendar_b.ics --filter-prefix "XYZ:"
+calendar-sync sync --from_file path/to/calendar_a.ics --to_file path/to/calendar_b.ics --output path/to/output_calendar_b.ics --filter-prefix "XYZ:"
 ```
 
-- Sync from "Calendar B" to "Calendar A" and add a prefix ClientA: to events:
+- Sync from "Calendar B" to "Calendar A", adding a prefix ClientA: to the synced events:
 
 ```bash
-calendar-sync sync --direction calendar_b_to_a --ics_file path/to/calendar_b.ics --output_file path/to/output_calendar_a.ics --add-prefix "XYZ: "
+calendar-sync sync --from_file path/to/calendar_b.ics --to_file path/to/calendar_a.ics --output path/to/output_calendar_a.ics --add-prefix "ClientA: "
 ```
 
 ### Checking for conflicts
@@ -35,10 +35,10 @@ calendar-sync sync --direction calendar_b_to_a --ics_file path/to/calendar_b.ics
 Check for conflicting events between two ICS files within the next X days:
 
 ```bash
-calendar-sync check_conflicts --file1 path/to/calendar_a.ics --file2 path/to/calendar_b.ics --days 7
+calendar-sync check_conflicts --from_file path/to/calendar_a.ics --to_file path/to/calendar_b.ics --days 7
 ```
 
-This command will output a list of conflicting events.
+This command will output a list of conflicting events between the two calendars.
 
 ## Contributing
 
